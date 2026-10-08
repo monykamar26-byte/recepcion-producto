@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Recepción de Producto</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--ok:#166534;--okbg:#dcfce7;--warn:#92400e;--warnbg:#fef3c7;--bad:#991b1b;--badbg:#fee2e2}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:18px 20px;position:sticky;top:0;z-index:5}
+h1{font-size:22px;margin:0}.sub{font-size:13px;color:var(--muted);margin-top:4px}
+.wrap{max-width:850px;margin:auto;padding:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+h2{font-size:17px;margin:0 0 14px}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:11px;font-size:16px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{border:0;border-radius:11px;padding:12px 14px;font-weight:750;font-size:15px;cursor:pointer}
+.primary{background:#111827;color:#fff}.secondary{background:#eef2ff;color:#3730a3}.danger{background:#fef2f2;color:#991b1b}
+.camera-shell{position:relative;border-radius:16px;overflow:hidden;background:#111;aspect-ratio:4/3;display:none}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.guide{position:absolute;left:8%;right:8%;top:38%;height:24%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.42);pointer-events:none}
+.guide span{position:absolute;left:50%;top:-31px;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;padding:5px 9px;border-radius:999px;font-size:12px;white-space:nowrap}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.actions .btn{flex:1;min-width:150px}
+.result{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fafafa}
+.ape{font-size:34px;font-weight:850;letter-spacing:.08em;margin:8px 0}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.ok{background:var(--okbg);color:var(--ok)}.warn{background:var(--warnbg);color:var(--warn)}.bad{background:var(--badbg);color:var(--bad)}.neutral{background:#f3f4f6;color:#4b5563}
+.small{font-size:12px;color:var(--muted);line-height:1.45}
+.progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px;display:none}.progress div{height:100%;width:0;background:#111827}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted)}
+.notice{padding:10px 12px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px}
+@media(max-width:700px){.row{grid-template-columns:1fr}.wrap{padding:12px}.card{padding:15px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Recepción de Producto</h1>
+  <div class="sub">Prueba móvil · lectura exclusiva de lote APE###</div>
+</header>
+<div class="wrap">
+
+  <section class="card">
+    <h2>1. Leer lote</h2>
+    <div class="notice">No se leen códigos de barras. Coloca solamente el texto <b>WC: APE###</b> dentro del recuadro. La imagen no se guarda.</div>
+
+    <div class="actions">
+      <button class="btn primary" id="openCamera">📷 Abrir cámara</button>
+      <label class="btn secondary" style="text-align:center;margin:0">
+        Elegir foto
+        <input id="fileInput" type="file" accept="image/*" capture="environment" hidden>
+      </label>
+    </div>
+
+    <div class="camera-shell" id="cameraShell">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="guide"><span>Coloca aquí WC: APE###</span></div>
+    </div>
+
+    <div class="actions" id="cameraActions" style="display:none">
+      <button class="btn primary" id="capture">Leer lote</button>
+      <button class="btn danger" id="stopCamera">Cerrar cámara</button>
+    </div>
+
+    <div class="progress" id="progress"><div id="bar"></div></div>
+    <div class="result">
+      <div class="small" id="message">Aún no hay lectura.</div>
+      <div class="ape" id="apeDisplay">—</div>
+      <span id="apeStatus" class="status neutral">Sin lectura</span>
+      <label>Corrección manual</label>
+      <input id="lot" maxlength="6" placeholder="APE000" style="text-transform:uppercase">
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Datos de recepción</h2>
+    <div class="row">
+      <div><label>Almacén</label><select id="warehouse"><option>Cráter</option><option>Tepeji</option></select></div>
+      <div><label>Responsable</label><input id="responsible" placeholder="Nombre"></div>
+    </div>
+    <div class="row">
+      <div><label>Orden de compra / referencia</label><input id="po" placeholder="Ej. JB-E-136-26"></div>
+      <div><label>Proveedor</label><input id="supplier" placeholder="Proveedor"></div>
+    </div>
+    <label>Producto</label>
+    <input id="product" placeholder="Ej. ZR-201">
+    <div class="row">
+      <div><label>Cajas completas</label><input id="boxes" type="number" min="1" step="1" placeholder="0"></div>
+      <div><label>Cantidad por caja</label><input id="qtyPerBox" type="number" min="0" step="0.01" placeholder="0"></div>
+    </div>
+    <div class="row">
+      <div><label>Unidad</label><select id="unit"><option>M</option><option>pcM</option><option>kg</option><option>pzas</option></select></div>
+      <div><label>Total</label><input id="total" readonly></div>
+    </div>
+    <label>Observaciones</label><textarea id="notes" rows="3" placeholder="Opcional"></textarea>
+    <div class="actions">
+      <button class="btn primary" id="add">Agregar a recepción</button>
+      <button class="btn secondary" id="closeReceipt">Cerrar recepción</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Recepción actual</h2>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>Producto</th><th>Lote</th><th>Cajas</th><th>Total</th></tr></thead>
+        <tbody id="currentBody"><tr><td colspan="4" class="small">Sin movimientos.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<canvas id="canvas" hidden></canvas>
+
+<script>
+const $=id=>document.getElementById(id);
+let stream=null;
+let current=[];
+let worker=null;
+
+function normalizeLot(v){return (v||'').toUpperCase().replace(/\s+/g,'').trim()}
+function validLot(v){return /^APE\d{3}$/.test(normalizeLot(v))}
+function setLot(v,msg){
+  v=normalizeLot(v);
+  $('lot').value=v;
+  $('apeDisplay').textContent=v||'—';
+  if(validLot(v)){
+    $('apeStatus').className='status ok'; $('apeStatus').textContent='Lote válido';
+    $('message').textContent=msg||'Lote detectado.';
+  }else if(v){
+    $('apeStatus').className='status bad'; $('apeStatus').textContent='Formato inválido';
+  }else{
+    $('apeStatus').className='status neutral'; $('apeStatus').textContent='Sin lectura';
+  }
+}
+$('lot').addEventListener('input',e=>setLot(e.target.value,'Captura manual.'));
+
+function fixDigits(s){
+  return (s||'').toUpperCase().replace(/\s+/g,'')
+    .replace(/O/g,'0').replace(/[IL|]/g,'1').replace(/S/g,'5').replace(/Z/g,'2').replace(/B/g,'8');
+}
+function findAPE(text){
+  const t=(text||'').toUpperCase();
+  const pats=[
+    /A\s*P\s*E\s*[-_:]?\s*([0-9OIL|SBZ]{3})/,
+    /WC[\s.:_-]*A\s*P\s*E\s*[-_:]?\s*([0-9OIL|SBZ]{3})/
+  ];
+  for(const p of pats){
+    const m=t.match(p);
+    if(m){
+      const d=fixDigits(m[1]);
+      if(/^\d{3}$/.test(d)) return 'APE'+d;
+    }
+  }
+  return null;
+}
+async function getWorker(){
+  if(worker) return worker;
+  worker=await Tesseract.createWorker('eng',1,{
+    logger:m=>{
+      if(m.status==='recognizing text'){
+        $('progress').style.display='block';
+        $('bar').style.width=Math.round((m.progress||0)*100)+'%';
+      }
+    }
+  });
+  await worker.setParameters({
+    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:- ',
+    preserve_interword_spaces:'1'
+  });
+  return worker;
+}
+function preprocessCanvas(sourceCanvas){
+  const c=document.createElement('canvas');
+  const scale=2;
+  c.width=sourceCanvas.width*scale; c.height=sourceCanvas.height*scale;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(sourceCanvas,0,0,c.width,c.height);
+  const img=ctx.getImageData(0,0,c.width,c.height), d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    const y=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+    const v=y<145?0:y>225?255:Math.round((y-145)*255/80);
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(img,0,0);
+  return c;
+}
+async function recognizeCanvas(c){
+  $('message').textContent='Analizando únicamente el recuadro...';
+  $('progress').style.display='block'; $('bar').style.width='5%';
+  try{
+    const w=await getWorker();
+    const improved=preprocessCanvas(c);
+    const attempts=[improved,c];
+    let all='';
+    for(let i=0;i<attempts.length;i++){
+      const r=await w.recognize(attempts[i]);
+      const txt=r.data.text||'';
+      all+=' '+txt;
+      const found=findAPE(txt);
+      if(found){
+        setLot(found,'Detectado automáticamente: '+found);
+        return;
+      }
+    }
+    const found=findAPE(all.replace(/\n/g,' '));
+    if(found){setLot(found,'Detectado automáticamente: '+found);return}
+    setLot('');
+    $('apeStatus').className='status warn'; $('apeStatus').textContent='No detectado';
+    $('message').textContent='No encontré APE###. Acerca más el texto al recuadro y evita reflejos.';
+  }catch(e){
+    $('apeStatus').className='status warn'; $('apeStatus').textContent='Error de lectura';
+    $('message').textContent='No se pudo completar el reconocimiento. Intenta de nuevo.';
+  }finally{
+    $('bar').style.width='100%';
+    setTimeout(()=>$('progress').style.display='none',700);
+  }
+}
+
+$('openCamera').onclick=async()=>{
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    $('video').srcObject=stream;
+    $('cameraShell').style.display='block';
+    $('cameraActions').style.display='flex';
+    $('message').textContent='Coloca WC: APE### dentro del recuadro.';
+  }catch(e){
+    $('message').textContent='No pude abrir la cámara. Revisa el permiso del navegador o usa “Elegir foto”.';
+  }
+};
+function stopCam(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $('video').srcObject=null;
+  $('cameraShell').style.display='none';
+  $('cameraActions').style.display='none';
+}
+$('stopCamera').onclick=stopCam;
+
+$('capture').onclick=async()=>{
+  const v=$('video');
+  if(!v.videoWidth) return;
+  const c=$('canvas'), ctx=c.getContext('2d');
+  const sx=v.videoWidth*.08, sy=v.videoHeight*.38, sw=v.videoWidth*.84, sh=v.videoHeight*.24;
+  c.width=Math.round(sw); c.height=Math.round(sh);
+  ctx.drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);
+  await recognizeCanvas(c);
+};
+
+$('fileInput').addEventListener('change',async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  const bmp=await createImageBitmap(file);
+  const c=$('canvas'), ctx=c.getContext('2d');
+  c.width=bmp.width; c.height=bmp.height;
+  ctx.drawImage(bmp,0,0);
+  await recognizeCanvas(c);
+});
+
+function calc(){
+  const b=Number($('boxes').value||0),q=Number($('qtyPerBox').value||0);
+  $('total').value=(b*q||0).toLocaleString('es-MX',{maximumFractionDigits:4});
+}
+$('boxes').addEventListener('input',calc); $('qtyPerBox').addEventListener('input',calc);
+
+$('add').onclick=()=>{
+  const lot=normalizeLot($('lot').value), product=$('product').value.trim();
+  const boxes=Number($('boxes').value), q=Number($('qtyPerBox').value), unit=$('unit').value;
+  if(!validLot(lot)) return alert('Primero necesitamos un lote válido APE###.');
+  if(!product) return alert('Captura el producto.');
+  if(!Number.isInteger(boxes)||boxes<=0) return alert('Captura cajas completas.');
+  if(!(q>0)) return alert('Captura cantidad por caja.');
+  const total=boxes*q;
+  const ex=current.find(x=>x.product===product&&x.lot===lot&&x.qtyPerBox===q&&x.unit===unit);
+  if(ex){ex.boxes+=boxes;ex.total+=total}else{current.push({product,lot,boxes,qtyPerBox:q,total,unit})}
+  renderCurrent();
+  $('boxes').value=''; $('qtyPerBox').value=''; $('total').value=''; $('lot').value=''; $('apeDisplay').textContent='—';
+  $('apeStatus').className='status neutral'; $('apeStatus').textContent='Sin lectura';
+  $('message').textContent='Lista para leer la siguiente caja.';
+};
+
+function renderCurrent(){
+  $('currentBody').innerHTML=current.length?current.map(x=>`<tr><td>${x.product}</td><td>${x.lot}</td><td>${x.boxes}</td><td>${x.total.toLocaleString('es-MX')} ${x.unit}</td></tr>`).join(''):'<tr><td colspan="4" class="small">Sin movimientos.</td></tr>';
+}
+$('closeReceipt').onclick=()=>{
+  if(!current.length)return alert('No hay movimientos.');
+  const payload={fecha:new Date().toISOString(),almacen:$('warehouse').value,responsable:$('responsible').value.trim(),oc:$('po').value.trim(),proveedor:$('supplier').value.trim(),observaciones:$('notes').value.trim(),items:current};
+  const all=JSON.parse(localStorage.getItem('recepciones_wrapmex')||'[]');all.unshift(payload);localStorage.setItem('recepciones_wrapmex',JSON.stringify(all));
+  alert('Recepción cerrada y guardada en este dispositivo.');
+  current=[];renderCurrent();
+};
+
+window.addEventListener('beforeunload',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
+</script>
+</body>
+</html>
